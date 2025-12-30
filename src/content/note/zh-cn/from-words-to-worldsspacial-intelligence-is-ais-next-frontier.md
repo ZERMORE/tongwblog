@@ -1,6 +1,7 @@
 ---
 title: From Words to Worlds:Spacial Intelligence is AI's Next Frontier
 timestamp: 2025-12-16 20:42:11+08:00
+tags: [转载]
 ---
 *by Li Feifei*
 
