@@ -29,6 +29,8 @@ npm run publish -- my-article --dry-run
 - `type`：`note` 或 `jotting`。
 - `locale`：`zh-cn`、`en` 或 `ja`。
 - `slug`：小写英文字母、数字和连接号，且在同类同语言内容中唯一。
-- 图片应放在文章 Markdown 文件同一目录。
+- 图片应放在文章 Markdown 文件同级的 `assets` 目录。`![[image.png]]` 和 `![[assets/image.png]]` 都能识别。
+- 发布时保留 `assets` 子目录；Obsidian 默认的 `Pasted image YYYYMMDDHHmmss.png` 会规范化为 `image-YYYYMMDD-HHMMSS.png`。
+- `assets` 中未被正文引用的文件只会报警，不会复制或删除。
 - `draft: true` 会同步到网站仓库，但不会生成公开页面。
 - 网站生成文件统一使用 `src/content/<type>/<locale>/<slug>/index.md` 结构。

@@ -1,7 +1,7 @@
 #!/usr/bin/env tsx
 
 import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
-import { basename, dirname, extname, join, relative, resolve, sep } from "node:path";
+import { basename, dirname, extname, join, parse as parsePath, relative, resolve, sep } from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { parse, stringify } from "yaml";
@@ -82,27 +82,54 @@ function publicArticleUrl(article: SourceArticle): string {
 	return `${siteBase}${locale}/${article.meta.type}/${article.meta.slug}`;
 }
 
+function filesRecursively(directory: string): string[] {
+	if (!existsSync(directory)) return [];
+	return readdirSync(directory, { withFileTypes: true }).flatMap(entry => {
+		const path = join(directory, entry.name);
+		return entry.isDirectory() ? filesRecursively(path) : entry.isFile() ? [path] : [];
+	});
+}
+
 function findAttachment(article: SourceArticle, reference: string): string | undefined {
 	const clean = decodeURIComponent(reference.split("#")[0]).replace(/\\/g, "/");
-	const candidates = [resolve(dirname(article.path), clean), resolve(vaultRoot, clean)];
-	return candidates.find(path => existsSync(path) && statSync(path).isFile());
+	const articleDirectory = dirname(article.path);
+	const candidates = [resolve(articleDirectory, clean), resolve(vaultRoot, clean)];
+	const exact = candidates.find(path => existsSync(path) && statSync(path).isFile());
+	if (exact) return exact;
+
+	// Obsidian often stores ![[image.png]] even when the file lives in ./assets.
+	const matches = filesRecursively(articleDirectory).filter(path => basename(path).toLowerCase() === basename(clean).toLowerCase());
+	if (matches.length > 1) throw new Error(`附件名称不唯一：${reference}`);
+	return matches[0];
+}
+
+function normalizedAssetName(filename: string): string {
+	const parsed = parsePath(filename);
+	const pasted = parsed.name.match(/^Pasted image (\d{8})(\d{6})$/i);
+	return pasted ? `image-${pasted[1]}-${pasted[2]}${parsed.ext.toLowerCase()}` : filename;
+}
+
+function destinationAssetPath(article: SourceArticle, source: string): string {
+	const articleDirectory = dirname(article.path);
+	const sourceRelative = relative(articleDirectory, source);
+	const parts = sourceRelative.split(sep);
+	const insideAssets = parts[0]?.toLowerCase() === "assets";
+	const destinationParts = insideAssets ? parts : ["assets", basename(source)];
+	destinationParts[destinationParts.length - 1] = normalizedAssetName(destinationParts.at(-1)!);
+	return destinationParts.join("/");
 }
 
 function transform(article: SourceArticle, articles: SourceArticle[]): { body: string; assets: Map<string, string>; warnings: string[] } {
 	let body = article.body;
 	const assets = new Map<string, string>();
 	const warnings: string[] = [];
-
-	body = body.replace(/!\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g, (_, reference: string, label?: string) => {
-		const source = findAttachment(article, reference.trim());
-		if (!source || !assetExtensions.has(extname(source).toLowerCase())) {
-			warnings.push(`无法找到图片附件：${reference}`);
-			return `![${label || basename(reference)}](${reference})`;
-		}
-		const filename = basename(source);
-		assets.set(filename, source);
-		return `![${label || filename}](./${filename})`;
-	});
+	const registerAsset = (source: string): string => {
+		const destination = destinationAssetPath(article, source);
+		const existing = assets.get(destination);
+		if (existing && resolve(existing) !== resolve(source)) throw new Error(`附件发布路径冲突：${destination}`);
+		assets.set(destination, source);
+		return destination;
+	};
 
 	body = body.replace(/!\[([^\]]*)\]\((?!https?:\/\/|data:|\/)([^)]+)\)/g, (whole, alt: string, reference: string) => {
 		const source = findAttachment(article, reference.trim());
@@ -110,9 +137,18 @@ function transform(article: SourceArticle, articles: SourceArticle[]): { body: s
 			warnings.push(`无法找到 Markdown 图片：${reference}`);
 			return whole;
 		}
-		const filename = basename(source);
-		assets.set(filename, source);
-		return `![${alt}](./${filename})`;
+		const destination = registerAsset(source);
+		return `![${alt}](./${destination})`;
+	});
+
+	body = body.replace(/!\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g, (_, reference: string, label?: string) => {
+		const source = findAttachment(article, reference.trim());
+		if (!source || !assetExtensions.has(extname(source).toLowerCase())) {
+			warnings.push(`无法找到图片附件：${reference}`);
+			return `![${label || basename(reference)}](${reference})`;
+		}
+		const destination = registerAsset(source);
+		return `![${label || basename(destination)}](./${destination})`;
 	});
 
 	body = body.replace(/(?<!!)\[\[([^\]|#]+)(?:#[^\]|]+)?(?:\|([^\]]+))?\]\]/g, (_, target: string, label?: string) => {
@@ -125,6 +161,13 @@ function transform(article: SourceArticle, articles: SourceArticle[]): { body: s
 		}
 		return `[${text}](${publicArticleUrl(destination)})`;
 	});
+
+	const sourceAssets = filesRecursively(join(dirname(article.path), "assets"))
+		.filter(path => assetExtensions.has(extname(path).toLowerCase()));
+	const referenced = new Set(Array.from(assets.values(), path => resolve(path).toLowerCase()));
+	for (const source of sourceAssets) {
+		if (!referenced.has(resolve(source).toLowerCase())) warnings.push(`未引用附件（不会发布）：${relative(dirname(article.path), source).split(sep).join("/")}`);
+	}
 
 	return { body, assets, warnings };
 }
@@ -175,21 +218,25 @@ async function main() {
 
 	const destinationDirectory = join(contentRoot, article.meta.type, article.meta.locale, article.meta.slug);
 	const destinationMarkdown = join(destinationDirectory, "index.md");
-	if (existsSync(destinationMarkdown) && !process.argv.includes("--force")) {
+	if (existsSync(destinationMarkdown) && !process.argv.includes("--force") && !process.argv.includes("--dry-run")) {
 		const overwrite = await confirm({ message: `${relative(siteRoot, destinationMarkdown)} 已存在，是否覆盖？`, initialValue: false });
 		if (isCancel(overwrite) || !overwrite) return cancel("未覆盖现有文章");
 	}
 
 	if (process.argv.includes("--dry-run")) {
 		log.info(`将写入：${destinationMarkdown}`);
-		converted.assets.forEach((source, name) => log.info(`将复制：${source} → ${join(destinationDirectory, name)}`));
+		converted.assets.forEach((source, path) => log.info(`将复制：${source} → ${join(destinationDirectory, path)}`));
 		return outro("检查完成，未写入文件");
 	}
 
 	mkdirSync(destinationDirectory, { recursive: true });
 	const output = `---\n${stringify(siteFrontmatter(article), { lineWidth: 0 }).trimEnd()}\n---\n\n${converted.body.replace(/^\s+/, "")}`;
 	writeFileSync(destinationMarkdown, output, "utf8");
-	converted.assets.forEach((source, name) => copyFileSync(source, join(destinationDirectory, name)));
+	converted.assets.forEach((source, path) => {
+		const destination = join(destinationDirectory, path);
+		mkdirSync(dirname(destination), { recursive: true });
+		copyFileSync(source, destination);
+	});
 	log.success(`已同步到 ${relative(siteRoot, destinationMarkdown).split(sep).join("/")}`);
 
 	if (!process.argv.includes("--skip-check")) {
