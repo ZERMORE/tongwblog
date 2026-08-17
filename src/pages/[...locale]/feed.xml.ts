@@ -5,6 +5,7 @@ import { getRelativeLocaleUrl } from "astro:i18n";
 import { Feed } from "feed";
 import config from "$config";
 import i18nit from "$i18n";
+import withBase from "$utils/url";
 
 export async function getStaticPaths() {
 	return i18n!.locales.map(locale => ({ params: { locale: locale == i18n?.defaultLocale ? undefined : (locale as string) } }));
@@ -17,6 +18,8 @@ export async function getStaticPaths() {
 export const GET: APIRoute = async ({ site, params }) => {
 	const { locale: language = i18n?.defaultLocale! } = params;
 	const t = i18nit(language);
+	const homeUrl = new URL(getRelativeLocaleUrl(language), site).toString();
+	const feedUrl = new URL(getRelativeLocaleUrl(language, "/feed.xml"), site).toString();
 
 	// Initialize feed with site metadata and configuration
 	const feed = new Feed({
@@ -27,10 +30,11 @@ export const GET: APIRoute = async ({ site, params }) => {
 		copyright: config.copyright.type == "CC0 1.0"
 			? "CC0 1.0 – No Rights Reserved"
 			: `${config.copyright.type} © ${config.copyright.year} ${typeof config.author == "string" ? config.author : config.author.name}`,
-		image: new URL("favicon-96x96.png", site).toString(),		// Feed image/logo
-		favicon: new URL("favicon.ico", site).toString(),			// Feed favicon
-		id: site!.toString(),										// Unique feed identifier
-		link: site!.toString(),										// Feed's associated website
+		image: new URL(withBase("favicon-96x96.png"), site).toString(),	// Feed image/logo
+		favicon: new URL(withBase("favicon.ico"), site).toString(),		// Feed favicon
+		id: homeUrl,											// Unique feed identifier
+		link: homeUrl,											// Feed's associated website
+		feedLinks: { atom: feedUrl },
 	});
 
 	// Aggregate items from specified sections

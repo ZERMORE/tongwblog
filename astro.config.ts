@@ -38,9 +38,7 @@ import reading from "./src/utils/remark/reading";
 export default defineConfig({
   //site: "https://thought-lite.vercel.app",
   site: "https://ZERMORE.github.io",
-  // Ensure base ends with a trailing slash so templates that concatenate
-  // BASE_URL + filename produce correct URLs (avoid "/tongwblogfavicon.svg")
-  base: "/tongwblog/",
+  base: "/tongwblog",
   trailingSlash: "never",
   i18n: {
     locales: ["en", "zh-cn", "ja"],

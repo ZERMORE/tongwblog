@@ -1,4 +1,5 @@
 import type { APIRoute } from "astro";
+import withBase from "$utils/url";
 
 export const GET: APIRoute = ({ site }) => {
 	const text = `
@@ -12,7 +13,7 @@ Disallow: /cdn-cgi
 User-agent: *
 Disallow: /
 
-Sitemap: ${new URL("sitemap-index.xml", site)}
+Sitemap: ${new URL(withBase("sitemap-index.xml"), site)}
 `;
 
 	return new Response(text);

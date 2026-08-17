@@ -1,7 +1,7 @@
 import type { APIRoute } from "astro";
 import { i18n } from "astro:config/client";
-import { getRelativeLocaleUrl } from "astro:i18n";
 import i18nit from "$i18n";
+import withBase from "$utils/url";
 
 export async function getStaticPaths() {
   return i18n!.locales.map(locale => ({ params: { locale: locale == i18n?.defaultLocale ? undefined : (locale as string) } }));
@@ -21,7 +21,7 @@ export const GET: APIRoute = ({ params }) => {
       <meta charset="utf-8" />
       <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       <title>${t("navigation.subscription")} | <xsl:value-of select="atom:feed/atom:title" /></title>
-      <link rel="stylesheet" href="/feed.css" />
+      <link rel="stylesheet" href="${withBase("feed.css")}" />
       <link rel="icon" type="image/x-icon" href="{atom:feed/atom:icon}" />
     </head>
 
@@ -42,7 +42,7 @@ export const GET: APIRoute = ({ params }) => {
         <p>${t("feed.usage")}</p>
         <p>
           ${t("feed.address")}:
-          <code id="feed-url"><xsl:value-of select="concat(atom:feed/atom:link[@rel='alternate']/@href, '${getRelativeLocaleUrl(locale, "feed.xml").slice(1)}')" /></code>
+          <code id="feed-url"><xsl:value-of select="atom:feed/atom:link[@rel='self']/@href" /></code>
           <button type="button" onclick="copy()" class="copy-btn">${t("feed.copy.name")}</button>
         </p>
       </blockquote>

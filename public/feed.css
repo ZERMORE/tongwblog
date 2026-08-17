@@ -1,0 +1,41 @@
+:root {
+	color-scheme: light dark;
+	font-family: ui-serif, Georgia, "Noto Serif SC", serif;
+	line-height: 1.6;
+}
+
+body {
+	max-width: 800px;
+	margin: 0 auto;
+	padding: 2rem 1rem;
+}
+
+a {
+	color: inherit;
+}
+
+blockquote,
+main section {
+	margin: 1rem 0;
+	padding: 1rem;
+	border: 1px solid color-mix(in srgb, currentColor 25%, transparent);
+	border-radius: 0.5rem;
+}
+
+main section article {
+	display: flex;
+	justify-content: space-between;
+	gap: 1rem;
+}
+
+aside {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.5rem;
+	margin-top: 0.5rem;
+	opacity: 0.7;
+}
+
+button {
+	cursor: pointer;
+}

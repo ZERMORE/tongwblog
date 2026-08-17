@@ -1,5 +1,5 @@
 {
-	"name": "celestial-chasm",
+	"name": "tongwblog",
 	"type": "module",
 	"version": "0.19.0",
 	"description": "A modern Astro theme focused on content creation",
@@ -11,18 +11,19 @@
 		"typescript",
 		"i18n"
 	],
-	"homepage": "https://github.com/tuyuritio/astro-theme-thought-lite",
+	"homepage": "https://zermore.github.io/tongwblog/",
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/tuyuritio/astro-theme-thought-lite.git"
+		"url": "https://github.com/ZERMORE/tongwblog"
 	},
 	"bugs": {
-		"url": "https://github.com/tuyuritio/astro-theme-thought-lite/issues"
+		"url": "https://github.com/ZERMORE/tongwblog/issues"
 	},
 	"license": "GPL-3.0",
 	"author": {
-		"name": "tuyuritio",
-		"url": "https://github.com/tuyuritio"
+		"name": "Tongw",
+		"email": "tongw6972@gmail.com",
+		"url": "https://github.com/ZERMORE"
 	},
 	"scripts": {
 		"new": "tsx scripts/new.ts",

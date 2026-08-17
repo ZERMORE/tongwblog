@@ -1,5 +1,6 @@
 ---
 import Base from "$layouts/Base.astro";
+import withBase from "$utils/url";
 ---
 
 <Base title="404">
@@ -8,6 +9,6 @@ import Base from "$layouts/Base.astro";
 			<span class="text-6xl font-bold">404</span>
 			<span class="text-2xl">Not Found</span>
 		</div>
-		<a href="/" class="text-lg text-center link">&gt; Back</a>
+		<a href={withBase()} class="text-lg text-center link">&gt; Back</a>
 	</main>
 </Base>
